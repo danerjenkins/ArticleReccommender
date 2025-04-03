@@ -1,35 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from "react";
+import Papa from "papaparse";
 
 const App: React.FC = () => {
-  const [userId, setUserId] = useState('');
+  const [titles, setTitles] = useState<string[]>([]);
+  const [userId, setUserId] = useState("");
   const [collabResults, setCollabResults] = useState<string[]>([]);
   const [contentResults, setContentResults] = useState<string[]>([]);
   const [azureResults, setAzureResults] = useState<string[]>([]);
 
-  const fetchRecommendations = async () => {
-    // Replace these with actual calls to your endpoints or model APIs
-    // Sample placeholder logic below
-    const collab = await fetch(`https://localhost:4000/api/collab?userId=${userId}`).then(res => res.json());
-    const content = await fetch(`https://localhost:4000/api/content?userId=${userId}`).then(res => res.json());
-    const azure = await fetch(`https://localhost:4000/api/azure?userId=${userId}`).then(res => res.json());
+  useEffect(() => {
+    const fetchTitles = async () => {
+      try {
+        console.log("Fetching titles from shared_articles.csv...");
+        const response = await fetch("/shared_articles.csv");
+        // console.log("Response:", response);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const csvText = await response.text();
+        // console.log("Fetched content:", csvText);
 
-    setCollabResults(collab.recommendations || []);
-    setContentResults(content.recommendations || []);
-    setAzureResults(azure.recommendations || []);
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (results) => {
+            const data = results.data as Array<Record<string, string>>;
+            const titleList = data.map((row) => row["title"] || "(No Title)");
+            setTitles(titleList);
+          },
+        });
+      } catch (error) {
+        console.error("Error fetching titles:", error);
+      }
+    };
+
+    fetchTitles();
+  }, []);
+
+  const fetchRecommendations = async () => {
+    console.log("Fetching recommendations for user:", userId);
+    // Placeholder logic
+    setCollabResults(["Item 1", "Item 2", "Item 3"]);
+    setContentResults(["Item A", "Item B", "Item C"]);
+    setAzureResults(["Item X", "Item Y", "Item Z"]);
   };
 
   return (
-    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>
-      <h1>News Recommendation System</h1>
-      <div style={{ marginBottom: '1rem' }}>
-        <label htmlFor="userId">Enter User ID: </label>
-        <input
-          id="userId"
-          type="text"
-          value={userId}
+    <div>
+      <div>
+        <h1>Article Recommender</h1>
+        <select
           onChange={(e) => setUserId(e.target.value)}
-          style={{ marginRight: '1rem' }}
-        />
+          style={{ marginRight: "1rem", padding: "0.5rem" }}
+        >
+          <option value="">Select a title</option>
+          {titles.map((title, idx) => (
+            <option key={idx} value={title}>
+              {title}
+            </option>
+          ))}
+        </select>
         <button onClick={fetchRecommendations}>Get Recommendations</button>
       </div>
 
