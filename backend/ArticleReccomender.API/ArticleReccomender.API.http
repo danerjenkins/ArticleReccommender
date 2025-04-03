@@ -1,6 +1,0 @@
-@ArticleReccomender.API_HostAddress = http://localhost:5081
-
-GET {{ArticleReccomender.API_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
