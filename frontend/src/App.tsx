@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
 
 const App: React.FC = () => {
-  const [titles, setTitles] = useState<string[]>([]);
-  const [userId, setUserId] = useState("");
-  const [collabResults, setCollabResults] = useState<string[]>([]);
+  const [articles, setArticles] = useState<
+    Array<{ title: string; contentId: string }>
+  >([]);
+  const [contentId, setContentId] = useState("");
+  const [collabResults, setCollabResults] = useState(null);
   const [contentResults, setContentResults] = useState<string[]>([]);
   const [azureResults, setAzureResults] = useState<string[]>([]);
 
@@ -25,8 +27,11 @@ const App: React.FC = () => {
           skipEmptyLines: true,
           complete: (results) => {
             const data = results.data as Array<Record<string, string>>;
-            const titleList = data.map((row) => row["title"] || "(No Title)");
-            setTitles(titleList);
+            const parsed = data.map((row) => ({
+              title: row["title"] || "(No Title)",
+              contentId: row["contentId"] || "",
+            }));
+            setArticles(parsed);
           },
         });
       } catch (error) {
@@ -38,9 +43,24 @@ const App: React.FC = () => {
   }, []);
 
   const fetchRecommendations = async () => {
-    console.log("Fetching recommendations for user:", userId);
+    console.log("Fetching recommendations for article:", contentId);
+    // Fetch collaborative recommendations for the selected contentId
+    try {
+      const response = await fetch("/collaborativerecommendations.json");
+      if (!response.ok) {
+        throw new Error(
+          `Failed to fetch collaborative recommendations: ${response.status}`
+        );
+      }
+
+      const data = await response.json();
+      // Filter recommendations based on the selected contentId
+      const recommendations = data[contentId] || [];
+      setCollabResults(recommendations);
+    } catch (error) {
+      console.error("Error fetching collaborative recommendations:", error);
+    }
     // Placeholder logic
-    setCollabResults(["Item 1", "Item 2", "Item 3"]);
     setContentResults(["Item A", "Item B", "Item C"]);
     setAzureResults(["Item X", "Item Y", "Item Z"]);
   };
@@ -50,13 +70,13 @@ const App: React.FC = () => {
       <div>
         <h1>Article Recommender</h1>
         <select
-          onChange={(e) => setUserId(e.target.value)}
+          onChange={(e) => setContentId(e.target.value)}
           style={{ marginRight: "1rem", padding: "0.5rem" }}
         >
           <option value="">Select a title</option>
-          {titles.map((title, idx) => (
-            <option key={idx} value={title}>
-              {title}
+          {articles.map((article, idx) => (
+            <option key={idx} value={article.contentId}>
+              {article.title}
             </option>
           ))}
         </select>
@@ -65,20 +85,27 @@ const App: React.FC = () => {
 
       <div>
         <h2>Collaborative Filtering</h2>
-        <ul>
-          {collabResults.map((itemId, idx) => (
-            <li key={idx}>{itemId}</li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <h2>Content Filtering</h2>
-        <ul>
-          {contentResults.map((itemId, idx) => (
-            <li key={idx}>{itemId}</li>
-          ))}
-        </ul>
+        {collabResults && (
+          <div>
+            <h2>Recommended Articles</h2>
+            <p>
+              <strong>If you liked:</strong> {collabResults["If you liked"]}
+            </p>
+            <ul>
+              {Array.from({ length: 5 }, (_, i) => (
+                <li key={i}>
+                  <a
+                    href={collabResults[`Link ${i + 1}`]}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {collabResults[`Article ${i + 1}`]}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
 
       <div>
