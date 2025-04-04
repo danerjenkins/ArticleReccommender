@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Papa from "papaparse";
+import AzureCall from "./AzureCall";
 
 const App: React.FC = () => {
   const [articles, setArticles] = useState<
@@ -15,22 +16,29 @@ const App: React.FC = () => {
       try {
         console.log("Fetching titles from shared_articles.csv...");
         const response = await fetch("/shared_articles.csv");
-        // console.log("Response:", response);
         if (!response.ok) {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const csvText = await response.text();
-        // console.log("Fetched content:", csvText);
 
         Papa.parse(csvText, {
           header: true,
           skipEmptyLines: true,
           complete: (results) => {
             const data = results.data as Array<Record<string, string>>;
-            const parsed = data.map((row) => ({
+
+            // Filter out rows where any value is null or empty
+            const filteredData = data.filter((row) =>
+              Object.values(row).every(
+                (value) => value !== null && value !== ""
+              )
+            );
+
+            const parsed = filteredData.map((row) => ({
               title: row["title"] || "(No Title)",
               contentId: row["contentId"] || "",
             }));
+
             setArticles(parsed);
           },
         });
@@ -41,6 +49,54 @@ const App: React.FC = () => {
 
     fetchTitles();
   }, []);
+
+  const processCsvForTopIndices = async (targetId: string): Promise<any> => {
+    try {
+      console.log(`Processing CSV to find row for ID: ${targetId}`);
+      const response = await fetch("/article_content_filtering.csv");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const csvText = await response.text();
+      let top5Indices: string[] = [];
+
+      Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          const data = results.data as Array<Record<string, string>>; // Log the parsed data for debugging
+
+          // Find the row matching the target ID
+          const targetRow = data.find((row) => row["contentId"] === targetId);
+          if (!targetRow) {
+            console.error(`No row found for ID: ${targetId}`);
+            return;
+          }
+
+          // Convert row values to numbers (excluding the ID and title columns)
+          const numericValues = Object.entries(targetRow)
+            .filter(([key]) => key !== "contentId")
+            .map(([key, value]) => ({ index: key, value: parseFloat(value) }))
+            .filter((item) => !isNaN(item.value)); // Filter out non-numeric values
+
+          // Sort values from largest to smallest
+          const sortedValues = numericValues.sort((a, b) => b.value - a.value);
+
+          // Pick the top 5 indices
+          top5Indices = sortedValues.slice(0, 5).map((item) => item.index);
+
+          console.log("Top 5 indices:", top5Indices);
+          // Set the top indices to state for rendering
+        },
+      });
+
+      setContentResults(top5Indices); // Update the state with the top 5 indices
+    } catch (error) {
+      console.error("Error processing CSV:", error);
+    }
+  };
+
+  // Example usage
 
   const fetchRecommendations = async () => {
     console.log("Fetching recommendations for article:", contentId);
@@ -56,13 +112,24 @@ const App: React.FC = () => {
       const data = await response.json();
       // Filter recommendations based on the selected contentId
       const recommendations = data[contentId] || [];
+      console.log(recommendations);
       setCollabResults(recommendations);
     } catch (error) {
       console.error("Error fetching collaborative recommendations:", error);
     }
     // Placeholder logic
-    setContentResults(["Item A", "Item B", "Item C"]);
-    setAzureResults(["Item X", "Item Y", "Item Z"]);
+    await processCsvForTopIndices(contentId);
+
+    console.log("content results:" + contentResults);
+
+    // Call Azure ML endpoint
+    try {
+      const azureResponse = await AzureCall(parseInt(contentId));
+
+      setAzureResults(["Item X", "Item Y", "Item Z"]);
+    } catch (error) {
+      console.error("Error calling Azure ML endpoint:", error);
+    }
   };
 
   return (
@@ -103,6 +170,20 @@ const App: React.FC = () => {
                   </a>
                 </li>
               ))}
+            </ul>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <h2>Content Filtering</h2>
+        {contentResults && (
+          <div>
+            <h3>Recommended Article Ids</h3>
+            <ul>
+              {contentResults.map((itemId, idx) => {
+                return <li key={idx}>{itemId}</li>;
+              })}
             </ul>
           </div>
         )}
