@@ -17,7 +17,7 @@ export default async function AzureCall(contentId: number): Promise<any> {
   // Define the endpoint URL and API key
   const url =
     "http://f9b702fe-a007-4ba6-b3ef-b2ab9274d826.eastus2.azurecontainer.io/score";
-  const apiKey = "ESEUkbzm1AdubvwSUZEPRaKdsUu60Vhu";
+  const apiKey = "";
 
   if (!apiKey) {
     throw new Error("A key should be provided to invoke the endpoint");
