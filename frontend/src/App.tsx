@@ -124,7 +124,7 @@ const App: React.FC = () => {
 
     // Call Azure ML endpoint
     try {
-      const azureResponse = await AzureCall(parseInt(contentId));
+      // const azureResponse = await AzureCall(parseInt(contentId));
 
       setAzureResults(["Item X", "Item Y", "Item Z"]);
     } catch (error) {
@@ -159,17 +159,30 @@ const App: React.FC = () => {
               <strong>If you liked:</strong> {collabResults["If you liked"]}
             </p>
             <ul>
-              {Array.from({ length: 5 }, (_, i) => (
-                <li key={i}>
-                  <a
-                    href={collabResults[`Link ${i + 1}`]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {collabResults[`Article ${i + 1}`]}
-                  </a>
-                </li>
-              ))}
+              {Array.from({ length: 5 }, (_, i) => {
+                const article = collabResults[`Article ${i + 1}`];
+                return (
+                  <li key={i}>
+                    {typeof article === "string" ? (
+                      <a
+                        href={collabResults[`Link ${i + 1}`]}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        {article}
+                      </a>
+                    ) : (
+                      <a
+                      // href={Object.values(collabResults[`Link ${i + 1}`])[0]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {String(Object.values(article)[0])}
+                    </a>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}
@@ -179,7 +192,7 @@ const App: React.FC = () => {
         <h2>Content Filtering</h2>
         {contentResults && (
           <div>
-            <h3>Recommended Article Ids</h3>
+            <h2>Recommended Articles</h2>
             <ul>
               {contentResults.map((itemId, idx) => {
                 return <li key={idx}>{itemId}</li>;
